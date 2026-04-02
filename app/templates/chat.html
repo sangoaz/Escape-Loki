@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <title>Loki Escape Game</title>
+    <style>
+        body {
+            font-family: Arial;
+            background: #1e1e1e;
+            color: white;
+            display: flex;
+            justify-content: center;
+        }
+
+        #chat {
+            width: 400px;
+            height: 600px;
+            background: #2a2a2a;
+            border-radius: 10px;
+            padding: 10px;
+            display: flex;
+            flex-direction: column;
+        }
+
+        #messages {
+            flex: 1;
+            overflow-y: auto;
+        }
+
+        .msg {
+            margin: 5px;
+            padding: 8px;
+            border-radius: 8px;
+            max-width: 80%;
+        }
+
+        .milo { background: #4caf50; align-self: flex-start; }
+        .loki { background: #e91e63; align-self: flex-start; }
+        .alex { background: #2196f3; align-self: flex-end; }
+
+        #input-area {
+            display: flex;
+            margin-top: 10px;
+        }
+
+        input {
+            flex: 1;
+            padding: 8px;
+        }
+
+        button {
+            padding: 8px;
+        }
+    </style>
+</head>
+<body>
+
+<div id="chat">
+    <div id="messages"></div>
+
+    <div id="input-area">
+        <input type="text" id="input" placeholder="Tape ta réponse..." />
+        <button onclick="send()">Envoyer</button>
+    </div>
+</div>
+
+<script>
+let playerId = null;
+
+async function startGame() {
+    const res = await fetch("/game/start", { method: "POST" });
+    const data = await res.json();
+
+    playerId = data.player_id;
+    renderMessages(data.messages);
+}
+
+async function send() {
+    const input = document.getElementById("input");
+    const value = input.value;
+
+    if (!value) return;
+
+    input.value = "";
+
+    await fetch("/game/submit", {
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        body: JSON.stringify({
+            player_id: playerId,
+            answer: value
+        })
+    });
+
+    refreshMessages();
+}
+
+async function refreshMessages() {
+    const res = await fetch(`/game/messages/${playerId}`);
+    const data = await res.json();
+
+    renderMessages(data.messages);
+}
+
+function renderMessages(messages) {
+    const container = document.getElementById("messages");
+    container.innerHTML = "";
+
+    messages.forEach(msg => {
+        const div = document.createElement("div");
+        div.className = `msg ${msg.sender}`;
+        div.innerText = `${msg.sender.toUpperCase()} : ${msg.content}`;
+        container.appendChild(div);
+    });
+
+    container.scrollTop = container.scrollHeight;
+}
+
+startGame();
+</script>
+
+</body>
+</html>
