@@ -15,6 +15,7 @@ from app.schemas.game import (
     ChatMessage,
     GameMessagesResponse,
     GameStartResponse,
+    GameStartRequest,
     GameStateResponse,
     SubmitAnswerRequest,
     SubmitAnswerResponse,
@@ -35,8 +36,9 @@ class ValidationResult:
 class GameService:
 
     # Creation d'une partie propre et initialiser le début de jeu correctement
-    def start_game(self) -> GameStartResponse:
+    def start_game(self, payload: GameStartRequest) -> GameStartResponse:
         player_id = str(uuid.uuid4())
+        player_name = payload.player_name.strip()
 
         # Récupération des messages d'introduction et convertion en objet ChatMessage
         initial_messages = [
@@ -44,10 +46,15 @@ class GameService:
         ]
 
         # Enregistrement du joueur dans la mémoire du jeu
-        game_store.create_player(player_id=player_id, initial_messages=initial_messages)
+        game_store.create_player(
+            player_id=player_id,
+            player_name=player_name,
+            initial_messages=initial_messages,
+        )
 
         return GameStartResponse(
             player_id=player_id,
+            player_name=player_name,
             current_phase=1,
             completed=False,
             messages=initial_messages,
@@ -75,6 +82,7 @@ class GameService:
 
         return GameMessagesResponse(
             player_id=player_id,
+            player_name=player["player_name"],
             current_phase=player["current_phase"],
             completed=player["completed"],
             messages=player["messages"],

@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <title>Start the Game</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background: linear-gradient(to bottom, #f3efe2, #d8cfae);
+            color: #1f1f1f;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+        }
+
+        .card {
+            width: 420px;
+            background: rgba(255, 255, 255, 0.85);
+            border-radius: 16px;
+            padding: 30px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.15);
+            backdrop-filter: blur(6px);
+        }
+
+        h1 {
+            margin-top: 0;
+            text-align: center;
+        }
+
+        p {
+            line-height: 1.5;
+        }
+
+        .rules {
+            background: rgba(0,0,0,0.05);
+            border-radius: 10px;
+            padding: 15px;
+            margin: 20px 0;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: bold;
+        }
+
+        input {
+            width: 100%;
+            padding: 12px;
+            box-sizing: border-box;
+            margin-bottom: 20px;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+        }
+
+        button {
+            width: 100%;
+            padding: 14px;
+            border: none;
+            border-radius: 10px;
+            background: #4caf50;
+            color: white;
+            font-size: 16px;
+            cursor: pointer;
+        }
+
+        button:hover {
+            opacity: 0.95;
+        }
+
+        .error {
+            color: #c62828;
+            margin-top: 10px;
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+    <div class="card">
+        <h1>🐰 Chasse aux chocolats 🐶</h1>
+
+        <p>
+            Loki a sombré après avoir mangé tous les chocolats de Pâques.
+            Milo a besoin de ton aide pour retrouver le trésor et le ramener à la raison.
+        </p>
+
+        <div class="rules">
+            <strong>Règles du jeu :</strong>
+            <p>• Observe bien ton environnement.</p>
+            <p>• Ne tape un mot dans le chat que lorsque tu as réellement découvert l’élément correspondant.</p>
+            <p>• Certains mots doivent être trouvés dans un ordre précis.</p>
+        </div>
+
+        <label for="player-name">Ton nom</label>
+        <input type="text" id="player-name" placeholder="Entre ton nom..." maxlength="50" />
+
+        <button onclick="startGame()">Commencer l’aventure</button>
+
+        <div id="error" class="error"></div>
+    </div>
+
+    <script>
+        async function startGame() {
+            const input = document.getElementById("player-name");
+            const errorDiv = document.getElementById("error");
+            const playerName = input.value.trim();
+
+            errorDiv.innerText = "";
+
+            if (!playerName) {
+                errorDiv.innerText = "Entre ton nom pour commencer.";
+                return;
+            }
+
+            try {
+                const res = await fetch("/game/start", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                        player_name: playerName
+                    })
+                });
+
+                if (!res.ok) {
+                    errorDiv.innerText = "Impossible de démarrer la partie.";
+                    return;
+                }
+
+                const data = await res.json();
+                window.location.href = `/game/play?player_id=${data.player_id}`;
+            } catch (error) {
+                errorDiv.innerText = "Une erreur est survenue.";
+            }
+        }
+    </script>
+</body>
+</html>

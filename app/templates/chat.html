@@ -5,26 +5,88 @@
     <title>Loki Escape Game</title>
     <style>
         body {
-            font-family: Arial;
-            background: #1e1e1e;
+            font-family: Arial, sans-serif;
             color: white;
             display: flex;
             justify-content: center;
+            margin: 0;
+            padding: 20px;
+            transition: background 0.6s ease, color 0.6s ease;
+        }
+
+        body.phase-1 {
+            background: linear-gradient(to bottom, #f3efe2, #d8cfae);
+            color: #1f1f1f;
+        }
+
+        body.phase-2 {
+            background: linear-gradient(to bottom, #2a2035, #14111a);
+            color: white;
+        }
+
+        body.phase-3 {
+            background: linear-gradient(to bottom, #120c18, #050507);
+            color: white;
         }
 
         #chat {
-            width: 400px;
-            height: 600px;
-            background: #2a2a2a;
+            width: 100%;
+            max-width: 600px;
+            height: 80vh;
             border-radius: 10px;
             padding: 10px;
             display: flex;
             flex-direction: column;
+            box-sizing: border-box;
+            transition: background 0.6s ease, box-shadow 0.6s ease;
+        }
+
+        body.phase-1 #chat {
+            background: rgba(255, 255, 255, 0.85);
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15);
+            align-items: center;
+            min-height: 98vh;
+        }
+
+        body.phase-2 #chat {
+            background: rgba(35, 28, 44, 0.95);
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.45);
+            align-items: center;
+            min-height: 98vh;
+        }
+
+        body.phase-3 #chat {
+            background: rgba(10, 10, 14, 0.96);
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.65);
+            align-items: center;
+            min-height: 98vh;
+        }
+
+        #timer {
+            text-align: center;
+            font-weight: bold;
+            margin-bottom: 10px;
+            padding: 8px;
+            border-radius: 8px;
+            transition: background 0.6s ease, color 0.6s ease;
+        }
+
+        body.phase-1 #timer {
+            background: rgba(0, 0, 0, 0.08);
+            color: #1f1f1f;
+        }
+
+        body.phase-2 #timer,
+        body.phase-3 #timer {
+            background: rgba(255, 255, 255, 0.08);
+            color: white;
         }
 
         #messages {
             flex: 1;
             overflow-y: auto;
+            display: flex;
+            flex-direction: column;
         }
 
         .msg {
@@ -32,30 +94,95 @@
             padding: 8px;
             border-radius: 8px;
             max-width: 80%;
+            word-wrap: break-word;
         }
 
-        .milo { background: #4caf50; align-self: flex-start; }
-        .loki { background: #e91e63; align-self: flex-start; }
-        .alex { background: #2196f3; align-self: flex-end; }
+        .milo {
+            background: #4caf50;
+            align-self: flex-start;
+            color: white;
+        }
+
+        .loki {
+            background: #e91e63;
+            align-self: flex-start;
+            color: white;
+        }
+
+        .alex {
+            background: #2196f3;
+            align-self: flex-end;
+            color: white;
+        }
+
+        .system {
+            background: #757575;
+            align-self: center;
+            text-align: center;
+            color: white;
+        }
+
+        .typing {
+            opacity: 0.7;
+            font-style: italic;
+        }
 
         #input-area {
             display: flex;
             margin-top: 10px;
+            gap: 8px;
         }
 
-        input {
+        #input {
             flex: 1;
             padding: 8px;
+            border: none;
+            border-radius: 6px;
+            outline: none;
+            box-sizing: border-box;
+        }
+
+        body.phase-1 #input {
+            background: white;
+            color: #1f1f1f;
+        }
+
+        body.phase-2 #input,
+        body.phase-3 #input {
+            background: #1c1c24;
+            color: white;
         }
 
         button {
-            padding: 8px;
+            padding: 8px 12px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            color: white;
+            transition: opacity 0.2s ease, background 0.6s ease;
+        }
+
+        body.phase-1 button {
+            background: #4caf50;
+        }
+
+        body.phase-2 button {
+            background: #7b1fa2;
+        }
+
+        body.phase-3 button {
+            background: #b71c1c;
+        }
+
+        button:hover {
+            opacity: 0.95;
         }
     </style>
 </head>
-<body>
+<body class="phase-1">
 
 <div id="chat">
+    <div id="timer">⏱️ 00:00</div>
     <div id="messages"></div>
 
     <div id="input-area">
@@ -66,42 +193,97 @@
 
 <script>
 let playerId = null;
+let playerName = "ALEX";
 let renderedCount = 0;
+let timerInterval = null;
+let startTime = null;
+let gameCompleted = false;
+let currentPhase = 1;
 
-async function startGame() {
-    const res = await fetch("/game/start", { method: "POST" });
-    const data = await res.json();
+async function initChat() {
+    const params = new URLSearchParams(window.location.search);
+    playerId = params.get("player_id");
 
-    playerId = data.player_id;
+    if (!playerId) {
+        window.location.href = "/game/start-page";
+        return;
+    }
 
-    await renderNewMessages(data.messages);
+    try {
+        const res = await fetch(`/game/messages/${playerId}`);
+
+        if (!res.ok) {
+            window.location.href = "/game/start-page";
+            return;
+        }
+
+        const data = await res.json();
+        playerName = data.player_name || "ALEX";
+        gameCompleted = data.completed;
+        currentPhase = data.current_phase || 1;
+
+        applyPhaseTheme(currentPhase);
+        startTimer();
+        await renderNewMessages(data.messages);
+
+        if (gameCompleted) {
+            stopTimer();
+        }
+    } catch (error) {
+        window.location.href = "/game/start-page";
+    }
 }
 
 async function send() {
     const input = document.getElementById("input");
     const value = input.value.trim();
 
-    if (!value) return;
+    if (!value || !playerId) return;
 
     input.value = "";
 
-    await fetch("/game/submit", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-            player_id: playerId,
-            answer: value
-        })
-    });
+    try {
+        const res = await fetch("/game/submit", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+                player_id: playerId,
+                answer: value
+            })
+        });
 
-    await refreshMessages();
+        if (!res.ok) {
+            return;
+        }
+
+        await refreshMessages();
+    } catch (error) {
+        console.error("Erreur lors de l'envoi du message :", error);
+    }
 }
 
 async function refreshMessages() {
-    const res = await fetch(`/game/messages/${playerId}`);
-    const data = await res.json();
+    try {
+        const res = await fetch(`/game/messages/${playerId}`);
 
-    await renderNewMessages(data.messages);
+        if (!res.ok) {
+            return;
+        }
+
+        const data = await res.json();
+        playerName = data.player_name || playerName;
+        gameCompleted = data.completed;
+        currentPhase = data.current_phase || currentPhase;
+
+        applyPhaseTheme(currentPhase);
+        await renderNewMessages(data.messages);
+
+        if (gameCompleted) {
+            stopTimer();
+        }
+    } catch (error) {
+        console.error("Erreur lors du rafraîchissement des messages :", error);
+    }
 }
 
 async function renderNewMessages(messages) {
@@ -118,12 +300,25 @@ async function renderNewMessages(messages) {
     }
 }
 
+function applyPhaseTheme(phase) {
+    document.body.classList.remove("phase-1", "phase-2", "phase-3");
+    document.body.classList.add(`phase-${phase}`);
+}
+
+function getDisplayName(msg) {
+    if (msg.sender === "alex") {
+        return playerName;
+    }
+    return msg.sender.toUpperCase();
+}
+
 function appendMessage(msg) {
     const container = document.getElementById("messages");
+    const displayName = getDisplayName(msg);
 
     const div = document.createElement("div");
     div.className = `msg ${msg.sender}`;
-    div.innerText = `${msg.sender.toUpperCase()} : ${msg.content}`;
+    div.innerText = `${displayName} : ${msg.content}`;
 
     container.appendChild(div);
     container.scrollTop = container.scrollHeight;
@@ -131,10 +326,11 @@ function appendMessage(msg) {
 
 async function showTypingThenMessage(msg) {
     const container = document.getElementById("messages");
+    const displayName = getDisplayName(msg);
 
     const typingDiv = document.createElement("div");
     typingDiv.className = `msg ${msg.sender} typing`;
-    typingDiv.innerText = `${msg.sender.toUpperCase()} : ...`;
+    typingDiv.innerText = `${displayName} : ...`;
 
     container.appendChild(typingDiv);
     container.scrollTop = container.scrollHeight;
@@ -143,7 +339,7 @@ async function showTypingThenMessage(msg) {
     await sleep(delay);
 
     typingDiv.className = `msg ${msg.sender}`;
-    typingDiv.innerText = `${msg.sender.toUpperCase()} : ${msg.content}`;
+    typingDiv.innerText = `${displayName} : ${msg.content}`;
     container.scrollTop = container.scrollHeight;
 }
 
@@ -159,7 +355,49 @@ function sleep(ms) {
     return new Promise(resolve => setTimeout(resolve, ms));
 }
 
-startGame();
+function startTimer() {
+    if (timerInterval) return;
+
+    startTime = Date.now();
+    updateTimerDisplay(0);
+
+    timerInterval = setInterval(() => {
+        if (gameCompleted) {
+            stopTimer();
+            return;
+        }
+
+        const elapsedMs = Date.now() - startTime;
+        updateTimerDisplay(elapsedMs);
+    }, 1000);
+}
+
+function stopTimer() {
+    if (timerInterval) {
+        clearInterval(timerInterval);
+        timerInterval = null;
+    }
+}
+
+function updateTimerDisplay(elapsedMs) {
+    const totalSeconds = Math.floor(elapsedMs / 1000);
+    const minutes = Math.floor(totalSeconds / 60);
+    const seconds = totalSeconds % 60;
+
+    const formattedMinutes = String(minutes).padStart(2, "0");
+    const formattedSeconds = String(seconds).padStart(2, "0");
+
+    const timer = document.getElementById("timer");
+    timer.innerText = `⏱️ ${formattedMinutes}:${formattedSeconds}`;
+}
+
+document.getElementById("input").addEventListener("keydown", function(event) {
+    if (event.key === "Enter") {
+        send();
+    }
+});
+
+initChat();
 </script>
 
 </body>

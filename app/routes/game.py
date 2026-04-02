@@ -6,6 +6,7 @@ from fastapi.templating import Jinja2Templates
 from app.schemas.game import (
     GameMessagesResponse,
     GameStartResponse,
+    GameStartRequest,
     GameStateResponse,
     SubmitAnswerRequest,
     SubmitAnswerResponse,
@@ -24,8 +25,14 @@ templates = Jinja2Templates(directory="app/templates")
     response_model=GameStartResponse,
     status_code=status.HTTP_201_CREATED,
 )
-def start_game() -> GameStartResponse:
-    return game_service.start_game()
+def start_game(payload: GameStartRequest) -> GameStartResponse:
+    return game_service.start_game(payload)
+
+
+# Afficher la page de départ
+@router.get("/start-page", response_class=HTMLResponse)
+def start_page(request: Request):
+    return templates.TemplateResponse("start.html", {"request": request})
 
 
 # Affiche le front (le chat)
