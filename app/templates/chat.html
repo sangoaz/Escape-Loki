@@ -66,18 +66,20 @@
 
 <script>
 let playerId = null;
+let renderedCount = 0;
 
 async function startGame() {
     const res = await fetch("/game/start", { method: "POST" });
     const data = await res.json();
 
     playerId = data.player_id;
-    renderMessages(data.messages);
+
+    await renderNewMessages(data.messages);
 }
 
 async function send() {
     const input = document.getElementById("input");
-    const value = input.value;
+    const value = input.value.trim();
 
     if (!value) return;
 
@@ -85,35 +87,76 @@ async function send() {
 
     await fetch("/game/submit", {
         method: "POST",
-        headers: {"Content-Type": "application/json"},
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
             player_id: playerId,
             answer: value
         })
     });
 
-    refreshMessages();
+    await refreshMessages();
 }
 
 async function refreshMessages() {
     const res = await fetch(`/game/messages/${playerId}`);
     const data = await res.json();
 
-    renderMessages(data.messages);
+    await renderNewMessages(data.messages);
 }
 
-function renderMessages(messages) {
+async function renderNewMessages(messages) {
+    const newMessages = messages.slice(renderedCount);
+
+    for (const msg of newMessages) {
+        if (msg.sender === "alex") {
+            appendMessage(msg);
+        } else {
+            await showTypingThenMessage(msg);
+        }
+
+        renderedCount++;
+    }
+}
+
+function appendMessage(msg) {
     const container = document.getElementById("messages");
-    container.innerHTML = "";
 
-    messages.forEach(msg => {
-        const div = document.createElement("div");
-        div.className = `msg ${msg.sender}`;
-        div.innerText = `${msg.sender.toUpperCase()} : ${msg.content}`;
-        container.appendChild(div);
-    });
+    const div = document.createElement("div");
+    div.className = `msg ${msg.sender}`;
+    div.innerText = `${msg.sender.toUpperCase()} : ${msg.content}`;
 
+    container.appendChild(div);
     container.scrollTop = container.scrollHeight;
+}
+
+async function showTypingThenMessage(msg) {
+    const container = document.getElementById("messages");
+
+    const typingDiv = document.createElement("div");
+    typingDiv.className = `msg ${msg.sender} typing`;
+    typingDiv.innerText = `${msg.sender.toUpperCase()} : ...`;
+
+    container.appendChild(typingDiv);
+    container.scrollTop = container.scrollHeight;
+
+    const delay = getTypingDelay(msg.content);
+    await sleep(delay);
+
+    typingDiv.className = `msg ${msg.sender}`;
+    typingDiv.innerText = `${msg.sender.toUpperCase()} : ${msg.content}`;
+    container.scrollTop = container.scrollHeight;
+}
+
+function getTypingDelay(content) {
+    const length = content.length;
+
+    if (length < 40) return 800;
+    if (length < 100) return 1400;
+    return 2200;
+}
+
+function sleep(ms) {
+    return new Promise(resolve => setTimeout(resolve, ms));
 }
 
 startGame();
