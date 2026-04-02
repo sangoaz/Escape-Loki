@@ -44,21 +44,18 @@
         body.phase-1 #chat {
             background: rgba(255, 255, 255, 0.85);
             box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15);
-            align-items: center;
             min-height: 98vh;
         }
 
         body.phase-2 #chat {
             background: rgba(35, 28, 44, 0.95);
             box-shadow: 0 10px 30px rgba(0, 0, 0, 0.45);
-            align-items: center;
             min-height: 98vh;
         }
 
         body.phase-3 #chat {
             background: rgba(10, 10, 14, 0.96);
             box-shadow: 0 10px 40px rgba(0, 0, 0, 0.65);
-            align-items: center;
             min-height: 98vh;
         }
 
@@ -87,39 +84,99 @@
             overflow-y: auto;
             display: flex;
             flex-direction: column;
+            gap: 8px;
+            padding-right: 4px;
+        }
+
+        .message-row {
+            display: flex;
+            align-items: flex-end;
+            gap: 8px;
+            width: 100%;
+        }
+
+        .message-row.alex {
+            justify-content: flex-end;
+        }
+
+        .message-row.milo,
+        .message-row.loki {
+            justify-content: flex-start;
+        }
+
+        .message-row.system {
+            justify-content: center;
+        }
+
+        .avatar {
+            width: 38px;
+            height: 38px;
+            border-radius: 50%;
+            object-fit: cover;
+            flex-shrink: 0;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+        }
+
+        .system-avatar {
+            display: none;
+        }
+
+        .message-content {
+            display: flex;
+            flex-direction: column;
+            max-width: 80%;
+        }
+
+        .message-row.alex .message-content {
+            align-items: flex-end;
+        }
+
+        .message-row.milo .message-content,
+        .message-row.loki .message-content {
+            align-items: flex-start;
+        }
+
+        .message-row.system .message-content {
+            align-items: center;
+            max-width: 90%;
+        }
+
+        .sender-name {
+            font-size: 12px;
+            font-weight: bold;
+            margin-bottom: 3px;
+            opacity: 0.85;
         }
 
         .msg {
-            margin: 5px;
-            padding: 8px;
-            border-radius: 8px;
-            max-width: 80%;
+            padding: 10px 12px;
+            border-radius: 14px;
             word-wrap: break-word;
+            line-height: 1.4;
         }
 
-        .milo {
+        .milo-bubble {
             background: #4caf50;
-            align-self: flex-start;
             color: white;
+            border-bottom-left-radius: 4px;
         }
 
-        .loki {
+        .loki-bubble {
             background: #e91e63;
-            align-self: flex-start;
             color: white;
+            border-bottom-left-radius: 4px;
         }
 
-        .alex {
+        .alex-bubble {
             background: #2196f3;
-            align-self: flex-end;
             color: white;
+            border-bottom-right-radius: 4px;
         }
 
-        .system {
+        .system-bubble {
             background: #757575;
-            align-self: center;
-            text-align: center;
             color: white;
+            text-align: center;
         }
 
         .typing {
@@ -199,6 +256,13 @@ let timerInterval = null;
 let startTime = null;
 let gameCompleted = false;
 let currentPhase = 1;
+
+const avatarMap = {
+    milo: "/static/avatars/milo.jpg",
+    loki: "/static/avatars/loki.jpg",
+    alex: "/static/avatars/alex.jpg",
+    system: "/static/avatars/system.png"
+};
 
 async function initChat() {
     const params = new URLSearchParams(window.location.search);
@@ -309,18 +373,61 @@ function getDisplayName(msg) {
     if (msg.sender === "alex") {
         return playerName;
     }
+    if (msg.sender === "system") {
+        return "SYSTÈME";
+    }
     return msg.sender.toUpperCase();
+}
+
+function getBubbleClass(sender) {
+    if (sender === "milo") return "milo-bubble";
+    if (sender === "loki") return "loki-bubble";
+    if (sender === "alex") return "alex-bubble";
+    return "system-bubble";
+}
+
+function createAvatar(sender) {
+    const avatar = document.createElement("img");
+    avatar.className = sender === "system" ? "avatar system-avatar" : "avatar";
+    avatar.src = avatarMap[sender] || avatarMap.system;
+    avatar.alt = sender;
+    return avatar;
 }
 
 function appendMessage(msg) {
     const container = document.getElementById("messages");
     const displayName = getDisplayName(msg);
 
-    const div = document.createElement("div");
-    div.className = `msg ${msg.sender}`;
-    div.innerText = `${displayName} : ${msg.content}`;
+    const row = document.createElement("div");
+    row.className = `message-row ${msg.sender}`;
 
-    container.appendChild(div);
+    const avatar = createAvatar(msg.sender);
+
+    const content = document.createElement("div");
+    content.className = "message-content";
+
+    const name = document.createElement("div");
+    name.className = "sender-name";
+    name.innerText = displayName;
+
+    const bubble = document.createElement("div");
+    bubble.className = `msg ${getBubbleClass(msg.sender)}`;
+    bubble.innerText = msg.content;
+
+    content.appendChild(name);
+    content.appendChild(bubble);
+
+    if (msg.sender === "alex") {
+        row.appendChild(content);
+        row.appendChild(avatar);
+    } else if (msg.sender === "system") {
+        row.appendChild(content);
+    } else {
+        row.appendChild(avatar);
+        row.appendChild(content);
+    }
+
+    container.appendChild(row);
     container.scrollTop = container.scrollHeight;
 }
 
@@ -328,18 +435,43 @@ async function showTypingThenMessage(msg) {
     const container = document.getElementById("messages");
     const displayName = getDisplayName(msg);
 
-    const typingDiv = document.createElement("div");
-    typingDiv.className = `msg ${msg.sender} typing`;
-    typingDiv.innerText = `${displayName} : ...`;
+    const row = document.createElement("div");
+    row.className = `message-row ${msg.sender}`;
 
-    container.appendChild(typingDiv);
+    const avatar = createAvatar(msg.sender);
+
+    const content = document.createElement("div");
+    content.className = "message-content";
+
+    const name = document.createElement("div");
+    name.className = "sender-name";
+    name.innerText = displayName;
+
+    const bubble = document.createElement("div");
+    bubble.className = `msg ${getBubbleClass(msg.sender)} typing`;
+    bubble.innerText = "...";
+
+    content.appendChild(name);
+    content.appendChild(bubble);
+
+    if (msg.sender === "alex") {
+        row.appendChild(content);
+        row.appendChild(avatar);
+    } else if (msg.sender === "system") {
+        row.appendChild(content);
+    } else {
+        row.appendChild(avatar);
+        row.appendChild(content);
+    }
+
+    container.appendChild(row);
     container.scrollTop = container.scrollHeight;
 
     const delay = getTypingDelay(msg.content);
     await sleep(delay);
 
-    typingDiv.className = `msg ${msg.sender}`;
-    typingDiv.innerText = `${displayName} : ${msg.content}`;
+    bubble.className = `msg ${getBubbleClass(msg.sender)}`;
+    bubble.innerText = msg.content;
     container.scrollTop = container.scrollHeight;
 }
 
