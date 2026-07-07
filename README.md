@@ -1,6 +1,25 @@
 # Loki Escape Game API
 
-Backend FastAPI V1 pour un escape game de Pâques sous forme de faux chat.
+Backend FastAPI pour un escape game interactif sous forme de faux chat. Le joueur progresse dans le scénario en résolvant des énigmes et en envoyant des mots-clés qui débloquent les différentes étapes du jeu.
+
+## Aperçu
+
+<p align="center">
+  <img src="images/Loki_Escape.png" width="600" alt="Interface du chat de l'escape game">
+</p>
+
+## Fonctionnement
+
+Le joueur démarre une partie et reçoit une conversation simulée avec un personnage.
+
+Chaque énigme correspond à une phase du scénario :
+
+- le joueur envoie une réponse ;
+- l'API valide le mot-clé ;
+- la progression est mise à jour ;
+- de nouveaux messages sont débloqués.
+
+La logique du scénario est séparée du code applicatif afin de pouvoir modifier l'histoire sans modifier l'API.
 
 ## Installation
 
