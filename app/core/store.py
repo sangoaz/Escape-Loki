@@ -8,9 +8,13 @@ class InMemoryGameStore:
 
     # Creation d'une nouvelle partie
     def create_player(
-        self, player_id: str, initial_messages: list[ChatMessage]
+        self,
+        player_id: str,
+        player_name: str,
+        initial_messages: list[ChatMessage],
     ) -> None:
         self._players[player_id] = {
+            "player_name": player_name,
             "current_phase": 1,
             "validated_keywords": [],
             "completed": False,

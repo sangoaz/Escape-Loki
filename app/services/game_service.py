@@ -15,6 +15,7 @@ from app.schemas.game import (
     ChatMessage,
     GameMessagesResponse,
     GameStartResponse,
+    GameStartRequest,
     GameStateResponse,
     SubmitAnswerRequest,
     SubmitAnswerResponse,
@@ -35,8 +36,9 @@ class ValidationResult:
 class GameService:
 
     # Creation d'une partie propre et initialiser le début de jeu correctement
-    def start_game(self) -> GameStartResponse:
+    def start_game(self, payload: GameStartRequest) -> GameStartResponse:
         player_id = str(uuid.uuid4())
+        player_name = payload.player_name.strip()
 
         # Récupération des messages d'introduction et convertion en objet ChatMessage
         initial_messages = [
@@ -44,10 +46,15 @@ class GameService:
         ]
 
         # Enregistrement du joueur dans la mémoire du jeu
-        game_store.create_player(player_id=player_id, initial_messages=initial_messages)
+        game_store.create_player(
+            player_id=player_id,
+            player_name=player_name,
+            initial_messages=initial_messages,
+        )
 
         return GameStartResponse(
             player_id=player_id,
+            player_name=player_name,
             current_phase=1,
             completed=False,
             messages=initial_messages,
@@ -75,6 +82,7 @@ class GameService:
 
         return GameMessagesResponse(
             player_id=player_id,
+            player_name=player["player_name"],
             current_phase=player["current_phase"],
             completed=player["completed"],
             messages=player["messages"],
@@ -89,12 +97,31 @@ class GameService:
         if player is None:
             return None
 
-        # Gestion du cas où la partie est déjà terminée
+        normalized_answer = self._normalize_keyword(payload.answer)
+
         if player["completed"]:
+            player["messages"].append(
+                ChatMessage(
+                    sender="alex",
+                    content=normalized_answer,
+                    phase=player["current_phase"],
+                    kind="answer",
+                )
+            )
+            player["messages"].append(
+                ChatMessage(
+                    sender="system",
+                    content="La partie est déjà terminée.",
+                    phase=player["current_phase"],
+                    kind="story",
+                )
+            )
+            game_store.update_player(payload.player_id, player)
+
             return SubmitAnswerResponse(
                 player_id=payload.player_id,
                 is_correct=False,
-                normalized_answer=self._normalize_keyword(payload.answer),
+                normalized_answer=normalized_answer,
                 feedback="La partie est déjà terminée.",
                 current_phase=player["current_phase"],
                 validated_keywords=player["validated_keywords"],
@@ -103,35 +130,38 @@ class GameService:
                 unlocked_messages=[],
             )
 
-        # Valider la réponse
         validation = self._validate_answer(player, payload.answer)
 
-        # Envoie du message du joueur dans le chat si la réponse est bonne et si elle est nouvelle
+        player["messages"].append(
+            ChatMessage(
+                sender="alex",
+                content=validation.normalized_answer,
+                phase=player["current_phase"],
+                kind="answer",
+            )
+        )
+
         if validation.is_expected and not validation.already_found:
             player["validated_keywords"].append(validation.normalized_answer)
-            player["messages"].append(
-                ChatMessage(
-                    sender="alex",
-                    content=validation.normalized_answer,
-                    phase=player["current_phase"],
-                    kind="answer",
-                )
-            )
-            # Si le mot débloque du contenu, ajout des messages débloqués en jeu
             player["messages"].extend(validation.unlocked_messages)
 
-            # Passage à la phase suivante si necessaire
             if validation.phase_completed and not validation.game_completed:
                 player["current_phase"] += 1
 
-            # Maquer la partie comme terminée si necessaire
             if validation.game_completed:
                 player["completed"] = True
+        else:
+            player["messages"].append(
+                ChatMessage(
+                    sender=self._get_feedback_sender(player["current_phase"]),
+                    content=validation.feedback,
+                    phase=player["current_phase"],
+                    kind="story",
+                )
+            )
 
-            # Sauvegarder les modifications en mémoire
-            game_store.update_player(payload.player_id, player)
+        game_store.update_player(payload.player_id, player)
 
-        # Renvoyer la réponse
         return SubmitAnswerResponse(
             player_id=payload.player_id,
             is_correct=validation.is_expected and not validation.already_found,
@@ -151,19 +181,7 @@ class GameService:
         phase_data = PHASE_CONFIG[current_phase]
         expected_keywords = phase_data["keywords"]
 
-        # Gestion de mauvaise réponse
-        if normalized_answer not in expected_keywords:
-            return ValidationResult(
-                normalized_answer=normalized_answer,
-                is_expected=False,
-                already_found=False,
-                phase_completed=False,
-                game_completed=False,
-                unlocked_messages=[],
-                feedback="Ce mot-clé ne débloque rien pour le moment.",
-            )
-
-        # Gestion de mot déjà trouvé (il était bien attendu, mais déjà trouvé)
+        # Vérifier que le mot n'a pas déjà été trouvé
         if normalized_answer in player["validated_keywords"]:
             return ValidationResult(
                 normalized_answer=normalized_answer,
@@ -172,21 +190,48 @@ class GameService:
                 phase_completed=False,
                 game_completed=False,
                 unlocked_messages=[],
-                feedback="Ce mot-clé a déjà été validé.",
+                feedback=self._build_feedback(current_phase, "already_found"),
             )
 
-        # Récupération des messages liés au mot
+        # Vérifier que le mot soit juste
+        if normalized_answer not in expected_keywords:
+            return ValidationResult(
+                normalized_answer=normalized_answer,
+                is_expected=False,
+                already_found=False,
+                phase_completed=False,
+                game_completed=False,
+                unlocked_messages=[],
+                feedback=self._build_feedback(current_phase, "wrong"),
+            )
+
+        # Setup du prochain mot à trouver
+        phase_validated = [
+            word for word in player["validated_keywords"] if word in expected_keywords
+        ]
+        next_expected_keyword = expected_keywords[len(phase_validated)]
+
+        # Si le mot tapé n'est pas le prochain mot à trouver mais qu'il est quand même dans la liste des mots à trouver
+        if normalized_answer != next_expected_keyword:
+            return ValidationResult(
+                normalized_answer=normalized_answer,
+                is_expected=False,
+                already_found=False,
+                phase_completed=False,
+                game_completed=False,
+                unlocked_messages=[],
+                feedback=self._build_feedback(current_phase, "wrong_order"),
+            )
+
         unlocked_messages = self._messages_for_keyword(
             current_phase=current_phase,
             keyword=normalized_answer,
         )
 
-        # Simuler l'état après validation
         future_validated = [*player["validated_keywords"], normalized_answer]
         phase_completed = all(word in future_validated for word in expected_keywords)
         game_completed = current_phase == 3 and phase_completed
 
-        # Récupération des messages de transition entre les phases, ainsi que les messages de fin
         if phase_completed:
             if current_phase in PHASE_TRANSITION_MESSAGES:
                 unlocked_messages.extend(
@@ -202,7 +247,7 @@ class GameService:
                         for message in FINAL_UNLOCK_MESSAGES
                     ]
                 )
-        # Retour d'un objet complet décrivant le résultat logique
+
         return ValidationResult(
             normalized_answer=normalized_answer,
             is_expected=True,
@@ -233,6 +278,33 @@ class GameService:
             for keyword in expected
             if keyword not in player["validated_keywords"]
         ]
+
+    def _build_feedback(self, current_phase: int, feedback_type: str) -> str:
+        feedbacks = {
+            1: {
+                "wrong": "Non… ce n’est pas ça. Nous avons du passer à côté de quelque chose.",
+                "already_found": "Tu l’as déjà trouvé. Je ne pense pas que cela vaille la peine que l'on revienne dessus...",
+                "wrong_order": "Pas encore… Il y a un autre élément à découvrir avant celui-ci.",
+            },
+            2: {
+                "wrong": "AHAHAHA… Non. Tu ne trouveras jamais mon trésor.",
+                "already_found": "Tu radotes. Ce mot a déjà été validé.",
+                "wrong_order": "Allons, allons… Tu brûles les étapes. Trouve d’abord ce qui vient avant.",
+            },
+            3: {
+                "wrong": "AHAHAHAHAHA, tu ne trouveras jamais la source de mon pouvoir.",
+                "already_found": "Tu t’acharnes pour rien. Ce mot a déjà servi.",
+                "wrong_order": "Tu n’y es pas encore… il te manque encore une compréhension essentielle.",
+            },
+        }
+
+        return feedbacks[current_phase][feedback_type]
+
+    # Si la réponse est fausse, milo répond dans la phase 1 et loki dans les deux secondes phases
+    def _get_feedback_sender(self, current_phase: int) -> str:
+        if current_phase == 1:
+            return "milo"
+        return "loki"
 
 
 game_service = GameService()

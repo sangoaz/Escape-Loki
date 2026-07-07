@@ -5,57 +5,241 @@
     <title>Loki Escape Game</title>
     <style>
         body {
-            font-family: Arial;
-            background: #1e1e1e;
+            font-family: Arial, sans-serif;
             color: white;
             display: flex;
             justify-content: center;
+            margin: 0;
+            padding: 20px;
+            transition: background 0.6s ease, color 0.6s ease;
+        }
+
+        body.phase-1 {
+            background: linear-gradient(to bottom, #f3efe2, #d8cfae);
+            color: #1f1f1f;
+        }
+
+        body.phase-2 {
+            background: linear-gradient(to bottom, #2a2035, #14111a);
+            color: white;
+        }
+
+        body.phase-3 {
+            background: linear-gradient(to bottom, #120c18, #050507);
+            color: white;
         }
 
         #chat {
-            width: 400px;
-            height: 600px;
-            background: #2a2a2a;
+            width: 100%;
+            max-width: 600px;
+            height: 80vh;
             border-radius: 10px;
             padding: 10px;
             display: flex;
             flex-direction: column;
+            box-sizing: border-box;
+            transition: background 0.6s ease, box-shadow 0.6s ease;
+        }
+
+        body.phase-1 #chat {
+            background: rgba(255, 255, 255, 0.85);
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15);
+            min-height: 98vh;
+        }
+
+        body.phase-2 #chat {
+            background: rgba(35, 28, 44, 0.95);
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.45);
+            min-height: 98vh;
+        }
+
+        body.phase-3 #chat {
+            background: rgba(10, 10, 14, 0.96);
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.65);
+            min-height: 98vh;
+        }
+
+        #timer {
+            text-align: center;
+            font-weight: bold;
+            margin-bottom: 10px;
+            padding: 8px;
+            border-radius: 8px;
+            transition: background 0.6s ease, color 0.6s ease;
+        }
+
+        body.phase-1 #timer {
+            background: rgba(0, 0, 0, 0.08);
+            color: #1f1f1f;
+        }
+
+        body.phase-2 #timer,
+        body.phase-3 #timer {
+            background: rgba(255, 255, 255, 0.08);
+            color: white;
         }
 
         #messages {
             flex: 1;
             overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            padding-right: 4px;
         }
 
-        .msg {
-            margin: 5px;
-            padding: 8px;
-            border-radius: 8px;
+        .message-row {
+            display: flex;
+            align-items: flex-end;
+            gap: 8px;
+            width: 100%;
+        }
+
+        .message-row.alex {
+            justify-content: flex-end;
+        }
+
+        .message-row.milo,
+        .message-row.loki {
+            justify-content: flex-start;
+        }
+
+        .message-row.system {
+            justify-content: center;
+        }
+
+        .avatar {
+            width: 38px;
+            height: 38px;
+            border-radius: 50%;
+            object-fit: cover;
+            flex-shrink: 0;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+        }
+
+        .system-avatar {
+            display: none;
+        }
+
+        .message-content {
+            display: flex;
+            flex-direction: column;
             max-width: 80%;
         }
 
-        .milo { background: #4caf50; align-self: flex-start; }
-        .loki { background: #e91e63; align-self: flex-start; }
-        .alex { background: #2196f3; align-self: flex-end; }
+        .message-row.alex .message-content {
+            align-items: flex-end;
+        }
+
+        .message-row.milo .message-content,
+        .message-row.loki .message-content {
+            align-items: flex-start;
+        }
+
+        .message-row.system .message-content {
+            align-items: center;
+            max-width: 90%;
+        }
+
+        .sender-name {
+            font-size: 12px;
+            font-weight: bold;
+            margin-bottom: 3px;
+            opacity: 0.85;
+        }
+
+        .msg {
+            padding: 10px 12px;
+            border-radius: 14px;
+            word-wrap: break-word;
+            line-height: 1.4;
+        }
+
+        .milo-bubble {
+            background: #4caf50;
+            color: white;
+            border-bottom-left-radius: 4px;
+        }
+
+        .loki-bubble {
+            background: #e91e63;
+            color: white;
+            border-bottom-left-radius: 4px;
+        }
+
+        .alex-bubble {
+            background: #2196f3;
+            color: white;
+            border-bottom-right-radius: 4px;
+        }
+
+        .system-bubble {
+            background: #757575;
+            color: white;
+            text-align: center;
+        }
+
+        .typing {
+            opacity: 0.7;
+            font-style: italic;
+        }
 
         #input-area {
             display: flex;
             margin-top: 10px;
+            gap: 8px;
         }
 
-        input {
+        #input {
             flex: 1;
             padding: 8px;
+            border: none;
+            border-radius: 6px;
+            outline: none;
+            box-sizing: border-box;
+        }
+
+        body.phase-1 #input {
+            background: white;
+            color: #1f1f1f;
+        }
+
+        body.phase-2 #input,
+        body.phase-3 #input {
+            background: #1c1c24;
+            color: white;
         }
 
         button {
-            padding: 8px;
+            padding: 8px 12px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            color: white;
+            transition: opacity 0.2s ease, background 0.6s ease;
+        }
+
+        body.phase-1 button {
+            background: #4caf50;
+        }
+
+        body.phase-2 button {
+            background: #7b1fa2;
+        }
+
+        body.phase-3 button {
+            background: #b71c1c;
+        }
+
+        button:hover {
+            opacity: 0.95;
         }
     </style>
 </head>
-<body>
+<body class="phase-1">
 
 <div id="chat">
+    <div id="timer">⏱️ 00:00</div>
     <div id="messages"></div>
 
     <div id="input-area">
@@ -66,57 +250,286 @@
 
 <script>
 let playerId = null;
+let playerName = "ALEX";
+let renderedCount = 0;
+let timerInterval = null;
+let startTime = null;
+let gameCompleted = false;
+let currentPhase = 1;
 
-async function startGame() {
-    const res = await fetch("/game/start", { method: "POST" });
-    const data = await res.json();
+const avatarMap = {
+    milo: "/static/avatars/milo.jpg",
+    loki: "/static/avatars/loki.jpg",
+    alex: "/static/avatars/alex.jpg",
+    system: "/static/avatars/system.png"
+};
 
-    playerId = data.player_id;
-    renderMessages(data.messages);
+async function initChat() {
+    const params = new URLSearchParams(window.location.search);
+    playerId = params.get("player_id");
+
+    if (!playerId) {
+        window.location.href = "/game/start-page";
+        return;
+    }
+
+    try {
+        const res = await fetch(`/game/messages/${playerId}`);
+
+        if (!res.ok) {
+            window.location.href = "/game/start-page";
+            return;
+        }
+
+        const data = await res.json();
+        playerName = data.player_name || "ALEX";
+        gameCompleted = data.completed;
+        currentPhase = data.current_phase || 1;
+
+        applyPhaseTheme(currentPhase);
+        startTimer();
+        await renderNewMessages(data.messages);
+
+        if (gameCompleted) {
+            stopTimer();
+        }
+    } catch (error) {
+        window.location.href = "/game/start-page";
+    }
 }
 
 async function send() {
     const input = document.getElementById("input");
-    const value = input.value;
+    const value = input.value.trim();
 
-    if (!value) return;
+    if (!value || !playerId) return;
 
     input.value = "";
 
-    await fetch("/game/submit", {
-        method: "POST",
-        headers: {"Content-Type": "application/json"},
-        body: JSON.stringify({
-            player_id: playerId,
-            answer: value
-        })
-    });
+    try {
+        const res = await fetch("/game/submit", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+                player_id: playerId,
+                answer: value
+            })
+        });
 
-    refreshMessages();
+        if (!res.ok) {
+            return;
+        }
+
+        await refreshMessages();
+    } catch (error) {
+        console.error("Erreur lors de l'envoi du message :", error);
+    }
 }
 
 async function refreshMessages() {
-    const res = await fetch(`/game/messages/${playerId}`);
-    const data = await res.json();
+    try {
+        const res = await fetch(`/game/messages/${playerId}`);
 
-    renderMessages(data.messages);
+        if (!res.ok) {
+            return;
+        }
+
+        const data = await res.json();
+        playerName = data.player_name || playerName;
+        gameCompleted = data.completed;
+        currentPhase = data.current_phase || currentPhase;
+
+        applyPhaseTheme(currentPhase);
+        await renderNewMessages(data.messages);
+
+        if (gameCompleted) {
+            stopTimer();
+        }
+    } catch (error) {
+        console.error("Erreur lors du rafraîchissement des messages :", error);
+    }
 }
 
-function renderMessages(messages) {
+async function renderNewMessages(messages) {
+    const newMessages = messages.slice(renderedCount);
+
+    for (const msg of newMessages) {
+        if (msg.sender === "alex") {
+            appendMessage(msg);
+        } else {
+            await showTypingThenMessage(msg);
+        }
+
+        renderedCount++;
+    }
+}
+
+function applyPhaseTheme(phase) {
+    document.body.classList.remove("phase-1", "phase-2", "phase-3");
+    document.body.classList.add(`phase-${phase}`);
+}
+
+function getDisplayName(msg) {
+    if (msg.sender === "alex") {
+        return playerName;
+    }
+    if (msg.sender === "system") {
+        return "SYSTÈME";
+    }
+    return msg.sender.toUpperCase();
+}
+
+function getBubbleClass(sender) {
+    if (sender === "milo") return "milo-bubble";
+    if (sender === "loki") return "loki-bubble";
+    if (sender === "alex") return "alex-bubble";
+    return "system-bubble";
+}
+
+function createAvatar(sender) {
+    const avatar = document.createElement("img");
+    avatar.className = sender === "system" ? "avatar system-avatar" : "avatar";
+    avatar.src = avatarMap[sender] || avatarMap.system;
+    avatar.alt = sender;
+    return avatar;
+}
+
+function appendMessage(msg) {
     const container = document.getElementById("messages");
-    container.innerHTML = "";
+    const displayName = getDisplayName(msg);
 
-    messages.forEach(msg => {
-        const div = document.createElement("div");
-        div.className = `msg ${msg.sender}`;
-        div.innerText = `${msg.sender.toUpperCase()} : ${msg.content}`;
-        container.appendChild(div);
-    });
+    const row = document.createElement("div");
+    row.className = `message-row ${msg.sender}`;
 
+    const avatar = createAvatar(msg.sender);
+
+    const content = document.createElement("div");
+    content.className = "message-content";
+
+    const name = document.createElement("div");
+    name.className = "sender-name";
+    name.innerText = displayName;
+
+    const bubble = document.createElement("div");
+    bubble.className = `msg ${getBubbleClass(msg.sender)}`;
+    bubble.innerText = msg.content;
+
+    content.appendChild(name);
+    content.appendChild(bubble);
+
+    if (msg.sender === "alex") {
+        row.appendChild(content);
+        row.appendChild(avatar);
+    } else if (msg.sender === "system") {
+        row.appendChild(content);
+    } else {
+        row.appendChild(avatar);
+        row.appendChild(content);
+    }
+
+    container.appendChild(row);
     container.scrollTop = container.scrollHeight;
 }
 
-startGame();
+async function showTypingThenMessage(msg) {
+    const container = document.getElementById("messages");
+    const displayName = getDisplayName(msg);
+
+    const row = document.createElement("div");
+    row.className = `message-row ${msg.sender}`;
+
+    const avatar = createAvatar(msg.sender);
+
+    const content = document.createElement("div");
+    content.className = "message-content";
+
+    const name = document.createElement("div");
+    name.className = "sender-name";
+    name.innerText = displayName;
+
+    const bubble = document.createElement("div");
+    bubble.className = `msg ${getBubbleClass(msg.sender)} typing`;
+    bubble.innerText = "...";
+
+    content.appendChild(name);
+    content.appendChild(bubble);
+
+    if (msg.sender === "alex") {
+        row.appendChild(content);
+        row.appendChild(avatar);
+    } else if (msg.sender === "system") {
+        row.appendChild(content);
+    } else {
+        row.appendChild(avatar);
+        row.appendChild(content);
+    }
+
+    container.appendChild(row);
+    container.scrollTop = container.scrollHeight;
+
+    const delay = getTypingDelay(msg.content);
+    await sleep(delay);
+
+    bubble.className = `msg ${getBubbleClass(msg.sender)}`;
+    bubble.innerText = msg.content;
+    container.scrollTop = container.scrollHeight;
+}
+
+function getTypingDelay(content) {
+    const length = content.length;
+
+    if (length < 40) return 800;
+    if (length < 100) return 1400;
+    return 2200;
+}
+
+function sleep(ms) {
+    return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+function startTimer() {
+    if (timerInterval) return;
+
+    startTime = Date.now();
+    updateTimerDisplay(0);
+
+    timerInterval = setInterval(() => {
+        if (gameCompleted) {
+            stopTimer();
+            return;
+        }
+
+        const elapsedMs = Date.now() - startTime;
+        updateTimerDisplay(elapsedMs);
+    }, 1000);
+}
+
+function stopTimer() {
+    if (timerInterval) {
+        clearInterval(timerInterval);
+        timerInterval = null;
+    }
+}
+
+function updateTimerDisplay(elapsedMs) {
+    const totalSeconds = Math.floor(elapsedMs / 1000);
+    const minutes = Math.floor(totalSeconds / 60);
+    const seconds = totalSeconds % 60;
+
+    const formattedMinutes = String(minutes).padStart(2, "0");
+    const formattedSeconds = String(seconds).padStart(2, "0");
+
+    const timer = document.getElementById("timer");
+    timer.innerText = `⏱️ ${formattedMinutes}:${formattedSeconds}`;
+}
+
+document.getElementById("input").addEventListener("keydown", function(event) {
+    if (event.key === "Enter") {
+        send();
+    }
+});
+
+initChat();
 </script>
 
 </body>

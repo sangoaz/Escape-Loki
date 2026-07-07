@@ -7,6 +7,11 @@ SenderType = Literal["milo", "loki", "alex", "system"]
 MessageKind = Literal["story", "hint", "answer"]
 
 
+# Saisie du nom du joueur
+class GameStartRequest(BaseModel):
+    player_name: str = Field(min_length=1, max_length=50)
+
+
 # Message du chat
 class ChatMessage(BaseModel):
     sender: SenderType
@@ -18,6 +23,7 @@ class ChatMessage(BaseModel):
 # La réponse lorsque l'on commence une partie
 class GameStartResponse(BaseModel):
     player_id: str
+    player_name: str
     current_phase: int
     completed: bool
     messages: list[ChatMessage]
@@ -54,6 +60,7 @@ class SubmitAnswerResponse(BaseModel):
 # Historique du chat
 class GameMessagesResponse(BaseModel):
     player_id: str
+    player_name: str
     current_phase: int
     completed: bool
     messages: list[ChatMessage]
